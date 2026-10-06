@@ -1755,12 +1755,28 @@ html_content = '''<!DOCTYPE html>
     </section>
 
     <!-- ========================================================= -->
-    <!-- SECTION 5: DIGNITARIES & CEREMONIAL PANELS                -->
+    <!-- SECTION 5: ALL DIGNITARIES & CEREMONIAL PANELS (INVITATIONS) -->
     <!-- ========================================================= -->
     <section id="sec-dignitaries" class="app-section-panel">
-      <div style="margin-bottom: 14px;">
-        <h2 style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--app-blue-950);">Conference Leadership</h2>
-        <p style="font-size: 0.85rem; color: var(--text-subtle);">Eminent patrons, keynote leaders, valedictory officers, and organizing committee.</p>
+      <div style="margin-bottom: 12px;">
+        <h2 style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--app-blue-950);">Conference Dignitaries &amp; Leadership</h2>
+        <p style="font-size: 0.85rem; color: var(--text-subtle);">All 38 distinguished patrons, inaugural luminaries, valedictory guests of honour, and national council members mentioned across the official invitations.</p>
+      </div>
+
+      <!-- Dignitaries Fast Search Box -->
+      <div style="background: #ffffff; border-radius: var(--radius-md); border: 1px solid var(--app-border); padding: 10px 14px; margin-bottom: 12px; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-magnifying-glass" style="color: var(--app-blue-600); font-size: 0.95rem;"></i>
+        <input type="text" id="dig-search-input" placeholder="Search dignitary name, university, or designation..." style="width: 100%; border: none; outline: none; font-family: var(--font-body); font-size: 0.88rem; color: var(--text-main);" oninput="searchDignitaries()">
+      </div>
+
+      <!-- Category Filter Chips Row -->
+      <div class="quick-chips-scroller" style="margin-bottom: 14px;">
+        <button class="touch-chip dig-filter-btn active" onclick="setDigFilter('all', this)"><i class="fa-solid fa-users"></i> All (<span id="dig-results-count">38</span>)</button>
+        <button class="touch-chip dig-filter-btn" onclick="setDigFilter('inauguration', this)"><i class="fa-solid fa-ribbon"></i> Inauguration &amp; Keynote (4)</button>
+        <button class="touch-chip dig-filter-btn" onclick="setDigFilter('valedictory', this)"><i class="fa-solid fa-award"></i> Valedictory Guests (6)</button>
+        <button class="touch-chip dig-filter-btn" onclick="setDigFilter('officers', this)"><i class="fa-solid fa-building-columns"></i> University &amp; ISPSW Officers (6)</button>
+        <button class="touch-chip dig-filter-btn" onclick="setDigFilter('national', this)"><i class="fa-solid fa-graduation-cap"></i> National Presence (17)</button>
+        <button class="touch-chip dig-filter-btn" onclick="setDigFilter('committee', this)"><i class="fa-solid fa-sitemap"></i> Organizing Committee (5)</button>
       </div>
 
       <div class="dignitaries-mobile-shelf" id="dignitaries-shelf-target">
@@ -2361,101 +2377,103 @@ html_content = '''<!DOCTYPE html>
       showAppToast(`Filtered by ${themeKey}`);
     }
 
-    // Render Dignitaries & Ceremonial Panels
+    // Comprehensive Dignitaries Directory with All Invitation Names & Quick Filter
+    let activeDigFilter = 'all';
+
+    function setDigFilter(catKey, btnEl) {
+      activeDigFilter = catKey;
+      document.querySelectorAll('.dig-filter-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      renderDignitariesView();
+    }
+
+    function searchDignitaries() {
+      renderDignitariesView();
+    }
+
     function renderDignitariesView() {
       const container = document.getElementById('dignitaries-shelf-target');
+      if (!container) return;
+
+      const q = (document.getElementById('dig-search-input')?.value || '').trim().toLowerCase();
+      const allData = CONF_DB.all_invitation_dignitaries || {};
+      
+      let allItems = [];
+      if (allData.inauguration) allItems = allItems.concat(allData.inauguration.map(x => ({...x, group: 'inauguration'})));
+      if (allData.valedictory) allItems = allItems.concat(allData.valedictory.map(x => ({...x, group: 'valedictory'})));
+      if (allData.presence_officers) allItems = allItems.concat(allData.presence_officers.map(x => ({...x, group: 'officers'})));
+      if (allData.national_council) allItems = allItems.concat(allData.national_council.map(x => ({...x, group: 'national'})));
+      if (allData.organizing_committee) allItems = allItems.concat(allData.organizing_committee.map(x => ({...x, group: 'committee'})));
+
+      // Filter by category
+      let filtered = allItems;
+      if (activeDigFilter !== 'all') {
+        filtered = filtered.filter(item => item.group === activeDigFilter);
+      }
+
+      // Filter by query
+      if (q) {
+        filtered = filtered.filter(item => 
+          item.name.toLowerCase().includes(q) ||
+          item.title.toLowerCase().includes(q) ||
+          item.org.toLowerCase().includes(q) ||
+          item.role.toLowerCase().includes(q)
+        );
+      }
+
+      // Count badge
+      const countEl = document.getElementById('dig-results-count');
+      if (countEl) countEl.textContent = filtered.length;
+
       let html = '';
 
-      // Section 1: Inaugural & Keynote Luminaries
-      html += `
-        <div style="grid-column: 1 / -1; margin-bottom: 4px;">
-          <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--app-blue-950); display: flex; align-items: center; gap: 7px;">
-            <i class="fa-solid fa-ribbon" style="color: var(--app-blue-600);"></i> Inaugural Luminaries &amp; Keynote
-          </h3>
-        </div>
-      `;
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 30px 10px; background: #fff; border-radius: var(--radius-md); border: 1px dashed var(--app-border);">
+            <i class="fa-solid fa-user-xmark" style="font-size: 2rem; color: var(--app-blue-400); margin-bottom: 8px;"></i>
+            <div style="font-weight: 700; color: var(--app-blue-950);">No dignitaries match "${q}"</div>
+            <div style="font-size: 0.8rem; color: var(--text-subtle); margin-top: 4px;">Try searching by surname, institution, or university name.</div>
+          </div>
+        `;
+        return;
+      }
 
-      CONF_DB.dignitaries.forEach(d => {
-        const photoHtml = d.photo 
-          ? `<img src="${d.photo}" alt="${d.name}">` 
+      filtered.forEach(d => {
+        // Photo match
+        let photoSrc = '';
+        if (d.photo_key && CONF_DB.dignitaries) {
+          const match = CONF_DB.dignitaries.find(x => x.name.toLowerCase().includes(d.name.split(' ')[1]?.toLowerCase() || d.name.toLowerCase()));
+          if (match && match.photo) photoSrc = match.photo;
+        }
+
+        const photoHtml = photoSrc 
+          ? `<img src="${photoSrc}" alt="${d.name}">` 
           : `<div class="fallback-ico"><i class="fa-solid fa-user-tie"></i></div>`;
 
+        let groupTag = d.category || 'Dignitary';
+        let groupColor = 'var(--app-blue-700)';
+        if (d.group === 'inauguration') groupColor = 'var(--app-blue-700)';
+        else if (d.group === 'valedictory') groupColor = '#059669';
+        else if (d.group === 'officers') groupColor = '#7c3aed';
+        else if (d.group === 'national') groupColor = '#d97706';
+        else if (d.group === 'committee') groupColor = 'var(--app-blue-600)';
+
         html += `
-          <div class="dignitary-card-mobile">
+          <div class="dignitary-card-mobile" style="border-left: 3.5px solid ${groupColor};">
             <div class="dig-avatar-ring">
               ${photoHtml}
             </div>
-            <div class="dig-details-box">
-              <span class="dig-role-chip">${d.tag}</span>
-              <h4>${d.name}</h4>
-              <div style="font-size: 0.82rem; font-weight: 700; color: var(--app-blue-700);">${d.title}</div>
+            <div class="dig-details-box" style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                <span class="dig-role-chip" style="color: ${groupColor};">${d.role}</span>
+              </div>
+              <h4 style="font-size: 1.05rem; margin-top: 1px;">${d.name}</h4>
+              <div style="font-size: 0.82rem; font-weight: 700; color: var(--app-blue-900);">${d.title}</div>
               <div class="dig-affil">${d.org}</div>
             </div>
           </div>
         `;
       });
-
-      // Section 2: Valedictory Ceremony Panel Card
-      if (CONF_DB.valedictory_info) {
-        const vi = CONF_DB.valedictory_info;
-        html += `
-          <div style="grid-column: 1 / -1; margin-top: 18px; margin-bottom: 4px;">
-            <div style="background: linear-gradient(135deg, var(--app-blue-950) 0%, var(--app-blue-900) 100%); color: #fff; border-radius: var(--radius-lg); padding: 18px; border: 1.5px solid var(--app-cyan); box-shadow: var(--shadow-card);">
-              <div style="margin-bottom: 12px;">
-                <span style="background: rgba(14, 165, 233, 0.25); border: 1px solid var(--app-cyan); padding: 2px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--app-cyan);">Day 3 Ceremony</span>
-                <h3 style="font-family: var(--font-heading); font-size: 1.35rem; color: #fff; margin-top: 4px;">Valedictory Function &amp; Certificate Distribution</h3>
-                <div style="font-size: 0.8rem; color: var(--app-cyan-light); margin-top: 2px;">
-                  <i class="fa-regular fa-clock"></i> ${vi.date} · ${vi.time} · ${vi.venue}
-                </div>
-              </div>
-
-              <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px;">
-                <div style="background: rgba(255,255,255,0.08); padding: 12px; border-radius: var(--radius-sm); border-left: 3px solid var(--app-cyan);">
-                  <div style="font-size: 0.68rem; text-transform: uppercase; color: var(--app-cyan); font-weight: 700;">Presided Over By</div>
-                  <strong style="font-size: 1.05rem; color: #fff;">${vi.presided_by}</strong>
-                </div>
-                <div style="background: rgba(255,255,255,0.08); padding: 12px; border-radius: var(--radius-sm); border-left: 3px solid #4ade80;">
-                  <div style="font-size: 0.68rem; text-transform: uppercase; color: #4ade80; font-weight: 700;">Chief Guest &amp; Valedictory Address</div>
-                  <strong style="font-size: 1.05rem; color: #fff;">${vi.chief_guest}</strong>
-                </div>
-              </div>
-
-              <div style="margin-top: 14px;">
-                <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--app-cyan); font-weight: 700; margin-bottom: 6px;">Guests of Honour</div>
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  ${vi.guests_of_honour.map(g => `
-                    <div style="font-size: 0.82rem; color: #e2e8f0;">
-                      <i class="fa-solid fa-medal" style="color: var(--app-cyan); margin-right: 5px;"></i> <strong>${g.name}</strong>, <span style="opacity: 0.8;">${g.desig}</span>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-
-            </div>
-          </div>
-        `;
-      }
-
-      // Section 3: Organizing Committee
-      if (CONF_DB.organizing_committee) {
-        html += `
-          <div style="grid-column: 1 / -1; margin-top: 18px; margin-bottom: 4px;">
-            <h3 style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--app-blue-950); display: flex; align-items: center; gap: 7px;">
-              <i class="fa-solid fa-sitemap" style="color: var(--app-blue-600);"></i> Conference Organizing Committee
-            </h3>
-          </div>
-        `;
-
-        CONF_DB.organizing_committee.forEach(oc => {
-          html += `
-            <div style="background: #ffffff; border-radius: var(--radius-md); border: 1px solid var(--app-border); padding: 14px; text-align: center; border-top: 3px solid var(--app-blue-700);">
-              <span class="dig-role-chip" style="margin-bottom: 2px;">${oc.role}</span>
-              <h4 style="font-family: var(--font-heading); font-size: 1.05rem; color: var(--app-blue-950); margin-bottom: 2px;">${oc.name}</h4>
-              <div style="font-size: 0.78rem; color: var(--text-subtle);">${oc.dept}</div>
-            </div>
-          `;
-        });
-      }
 
       container.innerHTML = html;
     }
